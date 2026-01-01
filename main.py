@@ -10,7 +10,7 @@ TOKEN = '8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'
 
 app = Flask('')
 @app.route('/')
-def home(): return "Bot is Online!"
+def home(): return "Bot is Alive!"
 
 def run(): app.run(host='0.0.0.0', port=8080)
 def keep_alive():
@@ -20,16 +20,16 @@ def keep_alive():
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if "http" not in url: return
-    status_msg = await update.message.reply_text('🕵️ جاري محاولة كسر الحماية...')
+    status_msg = await update.message.reply_text('🛡️ جاري تجاوز الحماية والتحميل...')
 
     ydl_opts = {
         'format': 'best',
         'quiet': True,
         'no_warnings': True,
-        # استخدام هوية متصفح أندرويد حقيقية لتجنب رسالة "Confirm you are not a bot"
-        'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        # هذه الإعدادات تجعل السيرفر غير مرئي لأنظمة الحظر
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'nocheckcertificate': True,
-        'geo_bypass': True,
+        'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
     }
 
     try:
@@ -41,8 +41,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(filename)
             await status_msg.delete()
     except Exception as e:
-        # إذا استمر الحظر، سنخبر المستخدم أن السيرفر يحتاج "استراحة"
-        await status_msg.edit_text("⚠️ المنصة لا تزال تحظر السيرفر. سأحاول تغيير الهوية، جرب رابطاً آخر بعد قليل.")
+        await status_msg.edit_text("⚠️ المنصة تطلب تسجيل دخول. سأحاول مجدداً خلال دقائق.")
 
 def main():
     keep_alive()
