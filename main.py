@@ -1,54 +1,49 @@
+import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
-import asyncio
-import subprocess
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import yt_dlp
 
-# ضع هنا التوكن مباشرة (فقط للتجربة المحلية)
 BOT_TOKEN = "8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k"
 
-# أمر /start
+ydl_opts = {
+    'outtmpl': '/app/downloads/%(title)s.%(ext)s',  # مجلد الحفظ داخل الحاوية
+    'format': 'bestvideo+bestaudio/best',
+    'merge_output_format': 'mp4',
+    'noplaylist': True,
+    'quiet': True,
+}
+
+os.makedirs("/app/downloads", exist_ok=True)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🤖 البوت شغّال!\nابعث رابط فيديو أو صوت، وسأقوم بتحميله لك."
-    )
+    await update.message.reply_text("مرحبا! أرسل لي أي رابط فيديو، صوت، أو صورة من أي منصة.")
 
-# وظيفة تحميل الفيديو/الصوت باستخدام yt-dlp
-async def download_media(url: str, media_type: str = "video"):
-    output_format = "%(title)s.%(ext)s"
-    command = ["yt-dlp", "-o", output_format, url]
+async def download_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text.strip()
+    msg = await update.message.reply_text("جاري التحميل... ⏳")
 
-    if media_type == "audio":
-        command = ["yt-dlp", "-x", "--audio-format", "mp3", "-o", output_format, url]
-
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
-    return stdout.decode(), stderr.decode()
-
-# معالجة أي رسالة تحتوي على رابط
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if text.startswith("http"):
-        await update.message.reply_text("⏳ جاري التحميل...")
-        # تحميل الفيديو
-        stdout, stderr = await download_media(text, media_type="video")
-        if stderr:
-            await update.message.reply_text(f"❌ حدث خطأ أثناء التحميل:\n{stderr}")
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+        
+        # إرسال الملف إلى المستخدم
+        if filename.endswith(('.mp4', '.mkv', '.webm')):
+            await update.message.reply_video(video=open(filename, 'rb'))
+        elif filename.endswith(('.mp3', '.m4a', '.wav')):
+            await update.message.reply_audio(audio=open(filename, 'rb'))
         else:
-            await update.message.reply_text("✅ تم التحميل بنجاح! الملف محفوظ على جهازك.")
-    else:
-        await update.message.reply_text("⚠️ هذا ليس رابطًا صالحًا.")
+            await update.message.reply_document(document=open(filename, 'rb'))
 
-# إعداد التطبيق
+        await msg.edit_text("تم التحميل ✅")
+
+    except Exception as e:
+        await msg.edit_text(f"فشل التحميل ❌\n{str(e)}")
+
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# إضافة Handlers
 app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_link))
 
-# تشغيل البوت
-if __name__ == "__main__":
-    app.run_polling()
+print("بوت شغال...")
+app.run_polling()
