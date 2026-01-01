@@ -1,48 +1,54 @@
-import os
-import asyncio
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+import asyncio
+import subprocess
 
-TOKEN = '8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'
+# ضع هنا التوكن مباشرة (فقط للتجربة المحلية)
+BOT_TOKEN = "8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k"
 
+# أمر /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('✅ البوت محدث بأقوى كسر حماية! أرسل الرابط الآن.')
+    await update.message.reply_text(
+        "🤖 البوت شغّال!\nابعث رابط فيديو أو صوت، وسأقوم بتحميله لك."
+    )
 
-async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text
-    status_msg = await update.message.reply_text('⏳ أحاول كسر حماية يوتيوب الآن...')
-    
-    ydl_opts = {
-        'format': 'best',
-        'outtmpl': 'file_%(id)s.%(ext)s',
-        'nocheckcertificate': True,
-        'geo_bypass': True,
-        'quiet': True,
-        # هذه الإضافة تجبر يوتيوب على التعامل مع السيرفر كمتصفح أندرويد قديم (غالباً لا يتم حجبه)
-        'user_agent': 'Mozilla/5.0 (Linux; Android 9; SAMSUNG SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/9.2 Chrome/67.0.3396.87 Mobile Safari/537.36',
-    }
+# وظيفة تحميل الفيديو/الصوت باستخدام yt-dlp
+async def download_media(url: str, media_type: str = "video"):
+    output_format = "%(title)s.%(ext)s"
+    command = ["yt-dlp", "-o", output_format, url]
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            
-            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                await update.message.reply_photo(photo=open(filename, 'rb'))
-            else:
-                await update.message.reply_video(video=open(filename, 'rb'))
-        
-        if os.path.exists(filename): os.remove(filename)
-        await status_msg.delete()
+    if media_type == "audio":
+        command = ["yt-dlp", "-x", "--audio-format", "mp3", "-o", output_format, url]
 
-    except Exception as e:
-        await status_msg.edit_text(f"❌ يوتيوب يقاوم بشدة. جرب رابطاً آخر أو انتظر قليلاً.\n{str(e)}")
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    return stdout.decode(), stderr.decode()
 
-def main():
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_content))
-    application.run_polling()
+# معالجة أي رسالة تحتوي على رابط
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text.startswith("http"):
+        await update.message.reply_text("⏳ جاري التحميل...")
+        # تحميل الفيديو
+        stdout, stderr = await download_media(text, media_type="video")
+        if stderr:
+            await update.message.reply_text(f"❌ حدث خطأ أثناء التحميل:\n{stderr}")
+        else:
+            await update.message.reply_text("✅ تم التحميل بنجاح! الملف محفوظ على جهازك.")
+    else:
+        await update.message.reply_text("⚠️ هذا ليس رابطًا صالحًا.")
 
-if __name__ == '__main__': main()
+# إعداد التطبيق
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+# إضافة Handlers
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+# تشغيل البوت
+if __name__ == "__main__":
+    app.run_polling()
