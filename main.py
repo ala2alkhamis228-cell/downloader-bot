@@ -8,25 +8,27 @@ import yt_dlp
 TOKEN = '8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('أهلاً بك! أرسل لي رابط فيديو أو صورة من يوتيوب، تيك توك، فيسبوك، أو إنستغرام وسأقوم بتحميله فوراً.')
+    await update.message.reply_text('✅ أهلاً بك! أنا بوت التحميل الشامل.\n\nأرسل لي أي رابط (فيديو أو صورة) من يوتيوب، تيك توك، فيسبوك، أو إنستغرام وسأرسله لك فوراً.')
 
 async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-    status_msg = await update.message.reply_text('جاري المعالجة... انتظر لحظة.')
+    status_msg = await update.message.reply_text('⏳ جاري التحقق من الرابط وتجاوز الحماية...')
     
-    # إعدادات متقدمة جداً لتجاوز الحظر ودعم الصور والفيديو
+    # أقوى إعدادات تمويه لتجاوز حظر يوتيوب وتيك توك في أمريكا
     ydl_opts = {
         'format': 'best',
-        'outtmpl': 'downloaded_%(id)s.%(ext)s',
+        'outtmpl': 'file_%(id)s.%(ext)s',
         'nocheckcertificate': True,
         'quiet': True,
         'no_warnings': True,
         'geo_bypass': True,
-        'writethumbnail': True, # لدعم تحميل الصور إذا كان الرابط لصورة
+        'writethumbnail': True,
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-Fetch-Mode': 'navigate',
+            'Connection': 'keep-alive',
         }
     }
 
@@ -35,11 +37,11 @@ async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            # التحقق مما إذا كان الملف صورة أو فيديو وإرساله
+            # فحص نوع الملف (صورة أم فيديو) وإرساله
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                await update.message.reply_photo(photo=open(filename, 'rb'), caption='تم تحميل الصورة بنجاح!')
+                await update.message.reply_photo(photo=open(filename, 'rb'), caption='📸 تم تحميل الصورة بنجاح!')
             else:
-                await update.message.reply_video(video=open(filename, 'rb'), caption='تم تحميل الفيديو بنجاح!')
+                await update.message.reply_video(video=open(filename, 'rb'), caption='🎬 تم تحميل الفيديو بنجاح!')
         
         if os.path.exists(filename):
             os.remove(filename)
@@ -48,9 +50,9 @@ async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         error_text = str(e)
         if "Sign in" in error_text:
-            await status_msg.edit_text("يوتيوب يطلب تسجيل دخول. تأكد من أنك نقلت السيرفر لمنطقة Washington في Koyeb.")
+            await status_msg.edit_text("❌ يوتيوب ما زال يطلب تسجيل دخول. تأكد أنك اخترت 'With build' عند النشر في واشنطن.")
         else:
-            await status_msg.edit_text(f'حدث خطأ: {error_text}')
+            await status_msg.edit_text(f'❌ عذراً، حدث خطأ: {error_text}')
 
 def main():
     application = Application.builder().token(TOKEN).build()
