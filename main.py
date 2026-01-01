@@ -4,31 +4,23 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import yt_dlp
 
-# توكن البوت الخاص بك
 TOKEN = '8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('✅ البوت جاهز للعمل!\nأرسل لي أي رابط (فيديو أو صورة) وسأقوم بتحميله فوراً.')
+    await update.message.reply_text('✅ البوت محدث بأقوى كسر حماية! أرسل الرابط الآن.')
 
 async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-    status_msg = await update.message.reply_text('⏳ جاري التحميل... انتظر لحظة.')
+    status_msg = await update.message.reply_text('⏳ أحاول كسر حماية يوتيوب الآن...')
     
-    # أقوى إعدادات لكسر حظر يوتيوب وتيك توك ودعم الصور
     ydl_opts = {
         'format': 'best',
         'outtmpl': 'file_%(id)s.%(ext)s',
         'nocheckcertificate': True,
-        'quiet': True,
-        'no_warnings': True,
         'geo_bypass': True,
-        'writethumbnail': True, # يدعم سحب الصور
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Connection': 'keep-alive',
-        }
+        'quiet': True,
+        # هذه الإضافة تجبر يوتيوب على التعامل مع السيرفر كمتصفح أندرويد قديم (غالباً لا يتم حجبه)
+        'user_agent': 'Mozilla/5.0 (Linux; Android 9; SAMSUNG SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/9.2 Chrome/67.0.3396.87 Mobile Safari/537.36',
     }
 
     try:
@@ -36,18 +28,16 @@ async def download_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             
-            # إرسال المحتوى حسب نوعه (صورة أو فيديو)
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                await update.message.reply_photo(photo=open(filename, 'rb'), caption='📸 تم تحميل الصورة!')
+                await update.message.reply_photo(photo=open(filename, 'rb'))
             else:
-                await update.message.reply_video(video=open(filename, 'rb'), caption='🎬 تم تحميل الفيديو!')
+                await update.message.reply_video(video=open(filename, 'rb'))
         
-        if os.path.exists(filename):
-            os.remove(filename)
+        if os.path.exists(filename): os.remove(filename)
         await status_msg.delete()
 
     except Exception as e:
-        await status_msg.edit_text(f'❌ فشل التحميل. تأكد أن الرابط عام.\nالخطأ: {str(e)}')
+        await status_msg.edit_text(f"❌ يوتيوب يقاوم بشدة. جرب رابطاً آخر أو انتظر قليلاً.\n{str(e)}")
 
 def main():
     application = Application.builder().token(TOKEN).build()
@@ -55,5 +45,4 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_content))
     application.run_polling()
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__main__': main()
