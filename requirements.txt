@@ -1,2 +1,2 @@
-python-telegram-bot
-yt-dlp>=2025.01.01
+python-telegram-bot==20.7
+yt-dlp
