@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # نقطة الدخول لتشغيل البوت
-CMD ["python", "main.py"]
+CMD python main.py & python3 -m http.server $PORT
