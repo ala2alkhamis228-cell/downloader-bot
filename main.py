@@ -2,45 +2,37 @@ import os
 import telebot
 from yt_dlp import YoutubeDL
 
-# التوكن الخاص بك تم وضعه هنا مباشرة
 API_TOKEN = '8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'
 bot = telebot.TeleBot(API_TOKEN)
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "أهلاً بك! أنا بوت تحميل الفيديوهات. أرسل لي رابطاً من YouTube أو Instagram وسأبدأ بالتحميل فوراً.")
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "✅ البوت يعمل! أرسل رابط فيديو للتحميل.")
 
-@bot.message_handler(func=lambda message: True)
-def download_video(message):
+@bot.message_handler(func=lambda m: True)
+def download(message):
     url = message.text
     if "http" in url:
-        bot.reply_to(message, "⏳ جاري معالجة الرابط والتحميل، انتظر قليلاً...")
-        
+        sent_msg = bot.reply_to(message, "⏳ جاري معالجة الرابط والتحميل...")
         ydl_opts = {
             'format': 'best',
             'nocheckcertificate': True,
-            'ignoreerrors': True,
-            'no_warnings': True,
             'quiet': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'referer': 'https://www.google.com/',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0.0.0 Safari/537.36',
         }
-
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                
-                with open(filename, 'rb') as video:
-                    bot.send_video(message.chat.id, video)
-                
-                # حذف الملف بعد الإرسال لتوفير المساحة على السيرفر
-                if os.path.exists(filename):
-                    os.remove(filename)
+                file = ydl.prepare_filename(info)
+                with open(file, 'rb') as v:
+                    bot.send_video(message.chat.id, v)
+                if os.path.exists(file):
+                    os.remove(file)
         except Exception as e:
-            bot.reply_to(message, f"❌ حدث خطأ أثناء التحميل: {str(e)}")
-    else:
-        bot.reply_to(message, "⚠️ يرجى إرسال رابط صحيح.")
+            bot.reply_to(message, f"❌ حدث خطأ: {str(e)}")
+            # تنظيف أي ملفات عالقة في حال الخطأ
+            for f in os.listdir():
+                if f.endswith((".mp4", ".mkv", ".webm")):
+                    os.remove(f)
 
-if __name__ == "__main__":
-    bot.polling(none_stop=True)
+bot.polling(none_stop=True)
