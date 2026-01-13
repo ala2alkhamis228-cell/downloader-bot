@@ -1,53 +1,47 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
+import telebot
+from yt_dlp import YoutubeDL
 
-BOT_TOKEN = "8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k"
+# حط توكن البوت تبعك هون
+API_TOKEN = os.getenv('API_TOKEN')
+bot = telebot.TeleBot(API_TOKEN)
 
-# الخيارات الجديدة لحل مشكلة يوتيوب
-ydl_opts = {
-    'outtmpl': '/app/downloads/%(title)s.%(ext)s',
-    'format': 'bestvideo+bestaudio/best',
-    'merge_output_format': 'mp4',
-    'noplaylist': True,
-    'quiet': False,  # خليناه False عشان نشوف الخطأ بوضوح لو صار شي
-    'cookiefile': 'cookies.txt',  # السطر اللي طلبه يوتيوب في صورتك (0b4f)
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-}
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "أهلاً بك! أرسل لي رابط فيديو من يوتيوب أو إنستغرام لتحميله.")
 
-os.makedirs("/app/downloads", exist_ok=True)
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("مرحبا! أنا شغال الآن.. أرسل لي أي رابط.")
-
-async def download_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text.strip()
-    msg = await update.message.reply_text("جاري التحميل... ⏳")
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
+@bot.message_handler(func=lambda message: True)
+def download_video(message):
+    url = message.text
+    if "youtube.com" in url or "youtu.be" in url or "instagram.com" in url:
+        bot.reply_to(message, "جاري معالجة الرابط، انتظر قليلاً...")
         
-        # إرسال الملف
-        with open(filename, 'rb') as f:
-            if filename.endswith(('.mp4', '.mkv', '.webm')):
-                await update.message.reply_video(video=f)
-            elif filename.endswith(('.mp3', '.m4a', '.wav')):
-                await update.message.reply_audio(audio=f)
-            else:
-                await update.message.reply_document(document=f)
+        # إعدادات التحميل الذكية لتجنب الحظر وبدون حسابات شخصية
+        ydl_opts = {
+            'format': 'best',
+            'nocheckcertificate': True,
+            'ignoreerrors': True,
+            'no_warnings': True,
+            'quiet': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'referer': 'https://www.google.com/',
+        }
 
-        await msg.edit_text("تم التحميل ✅")
-        os.remove(filename) # مسح الملف بعد الإرسال لتوفير مساحة السيرفر
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                
+                with open(filename, 'rb') as video:
+                    bot.send_video(message.chat.id, video)
+                
+                # حذف الملف بعد الإرسال لتوفير المساحة
+                os.remove(filename)
+        except Exception as e:
+            bot.reply_to(message, f"حدث خطأ أثناء التحميل: {str(e)}")
+    else:
+        bot.reply_to(message, "عذراً، هذا الرابط غير مدعوم.")
 
-    except Exception as e:
-        await msg.edit_text(f"فشل التحميل ❌\n تأكد من رفع ملف cookies.txt في GitHub")
-
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_link))
-
-print("بوت شغال...")
-app.run_polling()
+# تشغيل البوت
+if __name__ == "__main__":
+    bot.polling(none_stop=True)
