@@ -1,20 +1,18 @@
-# Base image Python 3.11 slim
 FROM python:3.11-slim
 
-# تعيين مجلد العمل
 WORKDIR /app
 
-# تحديث الحزم وتثبيت Node.js و ffmpeg و curl
+# تثبيت الأدوات اللازمة للنظام
 RUN apt-get update && \
     apt-get install -y nodejs npm ffmpeg curl && \
     apt-get clean
 
-# نسخ ملف المتطلبات وتثبيت المكتبات
+# تثبيت المكتبات
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# نسخ كل ملفات المشروع
+# نسخ ملفات البوت
 COPY . .
 
-# نقطة الدخول لتشغيل البوت
+# تشغيل البوت وفتح منفذ وهمي لاستقرار السيرفر
 CMD python main.py & python3 -m http.server $PORT
