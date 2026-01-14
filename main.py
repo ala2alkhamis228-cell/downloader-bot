@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 # نجيب التوكن من Render Environment
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("'8090192039:AAHYdpeZkKmrRv8hwBHZhqAwYwaqifVHI7k'")
 
 # دالة التحميل
 def download_media(url):
